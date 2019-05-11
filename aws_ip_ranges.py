@@ -17,8 +17,7 @@ _aws_ranges = requests.get(_url, verify=False)
 ### End Variables
 
 if (_aws_ranges.status_code == 200):
-    _json_ranges = _aws_ranges.json()
-    _aws_s3_ranges = jmespath.search(_query,_json_ranges)
+    _aws_s3_ranges = jmespath.search(_query, _aws_ranges.json())
     print _aws_s3_ranges
 else:
     print "Something went wrong. Status code\r <%s>" % (_aws_ranges.status_code)
