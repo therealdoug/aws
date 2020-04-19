@@ -1,0 +1,14 @@
+{{ "Remove ACL from WCCP" | comment(decoration="!# ") }} 
+no ip wccp {{ iprange.wccp_num }} redirect-list {{ iprange.acl_name }} group-list {{ iprange.group_list }}
+{{ "Remove ACL" | comment(decoration="!# ") }} 
+no ip access-list extended {{ iprange.acl_name }}
+{{ "Re-Create ACL with new objects" | comment(decoration="!# ") }}
+ip access-list extended {{ iprange.acl_name }}
+{% for source in iprange.source %}
+ remark ===== SOURCE HOST - {{ source }} - TO AWS SERVICE {{ aws_service }} =====
+{% for s3_bucket in iprange.s3_list %}
+ deny tcp host {{ source }} {{ s3_bucket|ipaddr('network') }} {{ s3_bucket|ipaddr('netmask') }} eq 443
+{% endfor %}
+{% endfor %}
+{{ "Add ACL back to  WCCP" | comment(decoration="!# ") }} 
+ip wccp {{ iprange.wccp_num }} redirect-list {{ iprange.acl_name }} group-list {{ iprange.group_list }}

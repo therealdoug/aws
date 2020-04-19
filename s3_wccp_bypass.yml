@@ -1,0 +1,65 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  vars:
+    aws_ips: "https://ip-ranges.amazonaws.com/ip-ranges.json"
+    dest_file: "ip-ranges.json"
+    acl_name: "web_proxy_redirect"
+    group_list: "web_proxy_group"
+    wccp_num: "199"
+    aws_regions:
+      - "us-east-1"
+      - "us-east-2"
+    aws_service: "S3"
+    source_hosts: 
+      - "10.1.1.1"
+      - "10.2.2.2"
+      - "10.3.3.3"
+      - "10.4.4.4"
+
+  tasks:
+    - name: "Download ip-ranges.json file and save to file"
+      get_url:
+        url: "{{ aws_ips }}"
+        dest: "{{ dest_file }}"
+        validate_certs: no
+    
+    - name: Read in downloaded file
+      include_vars:
+        file: "{{ dest_file }}"
+        name: aws_ipranges
+
+    - name: "Set query filter to get S3 buckets in listed regions [var: aws_regions]"
+      set_fact:
+        test_region: >-
+          prefixes[?({% for region in aws_regions%}{% if loop.last %}region==`{{ region }}`
+          {% else %}region==`{{ region }}`||{% endif %}{% endfor %})&&(service==`{{ aws_service }}`)].ip_prefix
+
+#    - name: Debug - Print test_region
+#      debug:
+#        msg: "{{test_region}}"
+
+#    - name: Debug - Print filtered list of S3 destinations
+#      debug:
+#        msg: "{{ aws_ipranges|json_query(test_region) }}"
+
+    - name: Filter out S3 regions and register variables for template
+      set_fact:
+        iprange:
+          acl_name: "{{ acl_name }}"
+          group_list: "{{ group_list }}"
+          wccp_num: "{{ wccp_num }}"
+          s3_list: "{{ aws_ipranges|json_query(test_region) }}"
+          source: "{{ source_hosts }}"
+
+#    - name: Debug - Output Testing
+#      debug:
+#        msg: "{{ iprange }}"
+
+    - name: Generate template workplan
+      template:
+        src: "./acl_template.j2"
+        dest: "./workplan.cfg"
